@@ -7,6 +7,7 @@
 //
 
 import UIKit
+import CoreLocation
 
 class SearchViewController: UIViewController {
 
@@ -14,22 +15,30 @@ class SearchViewController: UIViewController {
     @IBOutlet weak var selectDateBackgroundView: UIView!
     @IBOutlet weak var searchBtnBackgroundView: UIView!
     @IBOutlet weak var separatorView: UIView!
-    @IBOutlet weak var showRankingBackgroundView: UIView!
+    @IBOutlet weak var rankingBtnBackgroundView: UIView!
     
     @IBOutlet weak var countryChoosenBtn: UIButton!
     @IBOutlet weak var dateTextField: UITextField!
+    
+    @IBOutlet weak var currentSituationBtnBackgroundView: UIView!
     
     private var datePicker: UIDatePicker?
     
     var countryChoosen: String?
     var date: String?
+    var currentCountry: String?
+    
+    let locationManager = CLLocationManager()
     
     override func viewDidLoad() {
         super.viewDidLoad()
+        setupLocationManager()
+        
         setUIGraphicDetails()
         setDatePicker()
         
     }
+    
     
 //MARK: - IBAction
     @IBAction func selectCountryButton_touchUpInside(_ sender: Any) {
@@ -45,8 +54,14 @@ class SearchViewController: UIViewController {
         }
         self.performSegue(withIdentifier: "segueToDetailsViewController", sender: nil)
     }
+    
     @IBAction func showRanking_touchUpInside(_ sender: Any) {
         self.performSegue(withIdentifier: "segueToRankingVC", sender: nil)
+    }
+    
+    @IBAction func currentSituazion_touchUpInside(_ sender: Any) {
+        guard self.currentCountry != nil else { return }
+        self.performSegue(withIdentifier: "segueToDetailsVCForCurrentLocation", sender: nil)
     }
     
     @IBAction func unwindToSearchViewController(_ segue: UIStoryboardSegue) {
@@ -57,16 +72,22 @@ class SearchViewController: UIViewController {
     }
     
     override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
-        guard let identifier = segue.identifier else {
-            return
-        }
+        guard let identifier = segue.identifier else { return }
         if identifier == "segueToDetailsViewController" {
             let detailsVC = segue.destination as! DetailsViewController
             detailsVC.countryChoosen = countryChoosen
             detailsVC.date = date
+        } else if identifier == "segueToDetailsVCForCurrentLocation" {
+            let detailsVC = segue.destination as! DetailsViewController
+            detailsVC.countryChoosen = self.currentCountry
+            //Get current Date
+            let dateFormatter = DateFormatter()
+            dateFormatter.dateFormat = "yyyy-MM-dd"
+            let currentDate = Date()
+            date = dateFormatter.string(from: currentDate)
+            detailsVC.date = date
         }
     }
-    
     
 //MARK: - Set UI Grapichs
     private func setUIGraphicDetails() {
@@ -75,7 +96,8 @@ class SearchViewController: UIViewController {
         selectDateBackgroundView.layer.cornerRadius = 10
         searchBtnBackgroundView.layer.cornerRadius = 10
         separatorView.layer.cornerRadius = 5
-        showRankingBackgroundView.layer.cornerRadius = 10
+        rankingBtnBackgroundView.layer.cornerRadius = 10
+        currentSituationBtnBackgroundView.layer.cornerRadius = 10
     }
     
 //MARK: PickerDate Helper
@@ -124,3 +146,40 @@ class SearchViewController: UIViewController {
   
 }
 
+//MARK: Location Manager
+extension SearchViewController: CLLocationManagerDelegate {
+    private func setupLocationManager() {
+        // Ask for Authorisation from the User.
+        self.locationManager.requestAlwaysAuthorization()
+
+        // For use in foreground
+        self.locationManager.requestWhenInUseAuthorization()
+
+        if CLLocationManager.locationServicesEnabled() {
+            locationManager.delegate = self
+            locationManager.desiredAccuracy = kCLLocationAccuracyNearestTenMeters
+            locationManager.startUpdatingLocation()
+        }
+    }
+    
+    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        guard let location: CLLocation = manager.location else { return }
+        fetchCityAndCountry(from: location) { country, error in
+            guard let country = country, error == nil else { return }
+            print(country)
+            
+            switch country { ///Manage some mismatch CoreLocation and API Statistics country name
+            case "United States":
+                self.currentCountry = "USA"
+            default:
+                self.currentCountry = country
+            }
+        }
+    }
+    
+    func fetchCityAndCountry(from location: CLLocation, completion: @escaping (_ country:  String?, _ error: Error?) -> ()) {
+        CLGeocoder().reverseGeocodeLocation(location) { placemarks, error in
+            completion(placemarks?.first?.country, error)
+        }
+    }
+}

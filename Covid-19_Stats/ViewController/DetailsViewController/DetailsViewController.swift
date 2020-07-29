@@ -7,9 +7,12 @@
 //
 
 import UIKit
+import MapKit
 
 class DetailsViewController: UIViewController {
-
+    
+    @IBOutlet weak var mapView: MKMapView!
+    
     @IBOutlet weak var titleCountryName: UINavigationItem!
     @IBOutlet weak var casesBackgroundView: UIView!
     @IBOutlet weak var deathsBackgroundView: UIView!
@@ -30,8 +33,12 @@ class DetailsViewController: UIViewController {
     
     var countryChoosen: String?
     var date: String?
+    var countryCurrentLocation: CLLocation? //TODO: not updated
     var historyResponse: History?
     var newsResponse: News?
+    
+    //Test
+    var italyTestLocation = CLLocation(latitude: 42.76319020, longitude: 12.25152220)
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -39,6 +46,13 @@ class DetailsViewController: UIViewController {
         showSpinnerView(viewForShowSpinner: newsBackgroundStackView)
         getNewsAndUpdateLbl()
         getHistoryAndUpdateLbl()
+        setupMapView()
+    }
+    
+    //MARK: - IBAction
+    @IBAction func urlNews_touchUpInside(_ sender: Any) {
+        guard let linkNews = newsResponse?.articles.first?.link else { return }
+        UIApplication.shared.open(URL(string: linkNews)!, options: [:], completionHandler: nil)
     }
     
     //MARK: - Set details
@@ -137,7 +151,7 @@ class DetailsViewController: UIViewController {
     
     //Find country in NSLocale from full name
     private func locale(for fullCountryName : String) -> String {
-        let locales : String = ""
+        let locales: String = ""
         for localeCode in NSLocale.isoCountryCodes {
             let identifier = NSLocale.init(localeIdentifier: "en_US")
             let countryName = identifier.displayName(forKey: NSLocale.Key.countryCode, value: localeCode)
@@ -151,4 +165,30 @@ class DetailsViewController: UIViewController {
     }
 }
 
+extension DetailsViewController: MKMapViewDelegate {
+    private func setupMapView() {
+//        var italyTestLocation = CLLocation(latitude: 42.76319020, longitude: 12.25152220)//CLLocation(latitude: 37.334722, longitude: -122.008889)
+        if self.countryChoosen != nil {
+            fetchCountryLocation(from: self.countryChoosen!) { (location, error) in
+                guard let location = location, error == nil else { return }
+                print("location:", location)
+                //self.italyTestLocation = location
+                self.countryCurrentLocation = location
+                print("self.countryCurrentLocation:", self.countryCurrentLocation!)
+            }
+        }
+        
+        let regionRadius: CLLocationDistance = 1000000
+        let region = MKCoordinateRegion(center: self.countryCurrentLocation?.coordinate ?? italyTestLocation.coordinate, latitudinalMeters: regionRadius, longitudinalMeters: regionRadius) //TODO: Resolve this bug: self.countryCurrentLocation?.coordinate not updated
+        mapView.setRegion(region, animated: true)
+        mapView.delegate = self
+    }
+    
+    func fetchCountryLocation(from countryName: String, completion: @escaping (_ countryLocation:  CLLocation?, _ error: Error?) -> ()) {
+        CLGeocoder().geocodeAddressString(countryName) { placemarks, error in
+            completion(placemarks?.first?.location, error)
+        }
+    }
+    
+}
 

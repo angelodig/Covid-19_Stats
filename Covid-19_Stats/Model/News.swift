@@ -14,7 +14,7 @@ struct News: Decodable {
 
 struct ArticleInfo: Decodable {
     var clean_url: String
-    var link: String //TODO: oppure url??
+    var link: String
     var title: String
     var summary: String
 }

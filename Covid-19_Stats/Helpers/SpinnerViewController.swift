@@ -37,7 +37,7 @@ extension UIViewController {
         spinnerView.didMove(toParent: self)
         
         //Wait seconds
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.9) {
             //Then remove spinner view controller
             spinnerView.willMove(toParent: nil)
             spinnerView.view.removeFromSuperview()
