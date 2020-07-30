@@ -167,27 +167,33 @@ class DetailsViewController: UIViewController {
 
 extension DetailsViewController: MKMapViewDelegate {
     private func setupMapView() {
-//        var italyTestLocation = CLLocation(latitude: 42.76319020, longitude: 12.25152220)//CLLocation(latitude: 37.334722, longitude: -122.008889)
-        if self.countryChoosen != nil {
-            fetchCountryLocation(from: self.countryChoosen!) { (location, error) in
-                guard let location = location, error == nil else { return }
-                print("location:", location)
-                //self.italyTestLocation = location
-                self.countryCurrentLocation = location
-                print("self.countryCurrentLocation:", self.countryCurrentLocation!)
-            }
-        }
         
-        let regionRadius: CLLocationDistance = 1000000
-        let region = MKCoordinateRegion(center: self.countryCurrentLocation?.coordinate ?? italyTestLocation.coordinate, latitudinalMeters: regionRadius, longitudinalMeters: regionRadius) //TODO: Resolve this bug: self.countryCurrentLocation?.coordinate not updated
-        mapView.setRegion(region, animated: true)
         mapView.delegate = self
+        guard let countryChoosen = countryChoosen else { return }
+       
+        let regionRadius: CLLocationDistance = 1000000
+        
+        fetchCountryLocation(from: countryChoosen) { (location, error) in
+            guard let location = location, error == nil else { return }
+            
+            print("location:", location)
+            self.countryCurrentLocation = location
+            
+            print("self.countryCurrentLocation:", self.countryCurrentLocation ?? "nil")
+            
+            // Quando questo pezzo di codice veniva eseguito prima (non aspettava il risultato della fetch), e di conseguenza countryCurrentLocation.coordinate era nil
+            guard let countryCurrentLocation = self.countryCurrentLocation else { return }
+            let region = MKCoordinateRegion(center: countryCurrentLocation.coordinate, latitudinalMeters: regionRadius, longitudinalMeters: regionRadius)
+            self.mapView.setRegion(region, animated: false)
+        }
     }
     
     func fetchCountryLocation(from countryName: String, completion: @escaping (_ countryLocation:  CLLocation?, _ error: Error?) -> ()) {
+        
         CLGeocoder().geocodeAddressString(countryName) { placemarks, error in
             completion(placemarks?.first?.location, error)
         }
+        
     }
     
 }
